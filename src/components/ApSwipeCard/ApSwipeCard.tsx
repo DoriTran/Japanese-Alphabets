@@ -90,28 +90,27 @@ const ApSwipeCard: FC<ApSwipeCardProps> = ({
     } else {
       setPosition({ x: 0, y: 0 });
     }
-  };
 
-  const handleCardClick = () => {
-    setIsFlipped(!isFlipped);
+    if (deltaX === 0 && deltaY === 0) setIsFlipped(!isFlipped);
   };
 
   const distanceFromCenter = Math.sqrt(position.x * position.x + position.y * position.y);
-  const opacity = Math.max(1 - distanceFromCenter / cardSize, 0);
+  const opacity = Math.max(1 - distanceFromCenter / threshold / 1.25, 0);
 
   return (
     <Draggable onStart={handleStart} onDrag={handleDrag} onStop={handleStop} position={position} {...dragProps}>
-      <div className={clsx(styles.cardWrapper)}>
+      <div
+        className={clsx(styles.cardWrapper)}
+        style={{
+          opacity,
+          cursor: isDragging ? "grabbing" : "pointer",
+          transition: isDragging ? "opacity 0.01s ease-out" : "transform 0.2s ease-out, opacity 0.01s ease-out",
+          transform: `translate(${position.x}px, ${position.y}px)`,
+        }}
+      >
         <Paper
-          onClick={handleCardClick}
           className={clsx(cardProps?.className, styles.card, { [styles.flipped]: isFlipped })}
           elevation={3}
-          style={{
-            opacity,
-            cursor: isDragging ? "grabbing" : "pointer",
-            transition: isDragging ? "opacity 0.01s ease-out" : "transform 0.2s ease-out, opacity 0.01s ease-out",
-            transform: `translate(${position.x}px, ${position.y}px)`,
-          }}
           {...cardProps}
         >
           <div className={styles.cardFront}>{keyword}</div>
