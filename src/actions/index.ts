@@ -1,58 +1,62 @@
-import { v4 as uuidv4 } from "uuid";
 import store from "store2";
-import { defaultPack, Pack, UserLearningProgress } from "./dataType";
+import { LearningProgress, LearningSettings, CardInfo, defaultSettings } from "./type";
 
-export async function getAllPack(): Promise<Pack[]> {
-  const packIds = store.get("packIds") || [];
-  const packs = packIds.map((packId: string) => store.get(packId));
-  return packs;
+// ==================== Learning progress:
+export async function getLearningProgress(): Promise<LearningProgress> {
+  const at = store.get("at") || -1;
+  const learningPack = store.get("learningPack") || [];
+  const wrongPack = store.get("wrongPack") || [];
+  return { at, learningPack, wrongPack };
 }
 
-export async function getLastestLearningPack(total: number): Promise<Pack[]> {
-  const packs = await getAllPack();
-  const lastestPacks = packs.filter((pack: Pack) => pack.learning && pack.learning.at >= 0);
-  return lastestPacks.slice(0, total);
+export async function next(): Promise<void> {
+  const at = store.get("at") || -1;
+  store.set("at", at + 1);
 }
 
-export async function getUserLearningProgress(): Promise<UserLearningProgress> {
-  const allPacks = await getAllPack();
-  const hourInSeconds = 3600;
-  return {
-    packs: allPacks.length,
-    cards: allPacks.reduce((totalCards: number, pack: Pack) => totalCards + (pack.card?.length || 0), 0),
-    learned: allPacks.reduce((totalLearned: number, pack: Pack) => totalLearned + (pack.learnedTimes || 0), 0),
-    hours: Math.floor(
-      allPacks.reduce((totalTimeLearned: number, pack: Pack) => totalTimeLearned + (pack.timeSpent || 0), 0) /
-        hourInSeconds,
-    ),
-  };
+export async function back(): Promise<void> {
+  const at = store.get("at") || -1;
+  store.set("at", at - 1);
 }
 
-export async function getPack(id: string): Promise<Pack> {
-  return store.get(id);
+export async function resetLearningProgress(): Promise<void> {
+  store.set("at", -1);
+  store.set("learningPack", []);
+  store.set("wrongPack", []);
 }
 
-export async function createPack(newPack: Pack): Promise<void> {
-  const packIds = store.get("packIds") || [];
-  const newPackId = uuidv4();
-  store.set("packIds", [newPackId, ...packIds]);
-  store.set(newPackId, newPack || defaultPack);
+export async function setNewLearningPack(newLearningPack: CardInfo[]): Promise<void> {
+  store.set("at", -1);
+  store.set("learningPack", newLearningPack);
 }
 
-export async function updatePack(upPack: Pack): Promise<void> {
-  if (upPack.lastLearn) {
-    const packIds = store.get("packIds") || [];
-    store.set("packIds", [upPack.id, ...packIds.filter((packId: string) => packId === upPack.id)]);
-  }
+export async function wrong(wrongCard: CardInfo): Promise<void> {
+  const wrongPack = store.get("wrongPack") || [];
+  const index = wrongPack.findIndex((card: CardInfo) => card.keyword === wrongCard.keyword);
 
-  const oldPack = store.get(upPack.id);
-  store.set(upPack.id, { ...oldPack, ...upPack });
+  if (index > 0) wrongPack[index].wrongRelearnRemain++;
+  else wrongPack.push({ ...wrongCard, wrongRelearnRemain: 3 });
+
+  store.set("wrongPack", wrongPack);
 }
 
-export async function deletePack(id: string): Promise<void> {
-  store.set(
-    "packIds",
-    store.get("packIds").filter((packId: string) => packId === id),
-  );
-  store.remove(id);
+export async function correct(correctCard: CardInfo): Promise<void> {
+  const wrongPack = store.get("wrongPack") || [];
+  const index = wrongPack.findIndex((card: CardInfo) => card.keyword === correctCard.keyword);
+
+  wrongPack[index].wrongRelearnRemain--;
+  if (wrongPack[index] === 0) wrongPack.slice(index, 1);
+
+  store.set("wrongPack", wrongPack);
+}
+
+// ==================== Learning settings:
+export async function getLearningSettings(): Promise<LearningSettings> {
+  const settings = store.get("settings") || defaultSettings;
+  return settings;
+}
+
+export async function setLearningSettings(newSettings: LearningSettings): Promise<void> {
+  const settings = store.get("settings") || defaultSettings;
+  store.set("settings", { ...settings, ...newSettings });
 }
